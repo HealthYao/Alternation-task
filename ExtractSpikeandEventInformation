@@ -1,0 +1,136 @@
+% Put information of each tetrode together to produce one file for one mice per day
+clc; clear; close all;
+tic
+pwd = uigetdir;  % Get target directory
+CurrentPath=pwd;
+AllPath=genpath(CurrentPath);
+SplitPath=strsplit(AllPath,';');
+SubPath=SplitPath';
+SubPath=SubPath(2:end-1);
+FirstGradeFolder=dir(pwd);
+ToDeleteFileID = [];
+for i = 3:size(FirstGradeFolder,1)
+    ToDeleteFolderName = strcat(pwd,'\',FirstGradeFolder(i).name); % construct file name that will be deleted
+    for j = 1:length(SubPath) % Find file ID that will be deleted
+        if strcmp(ToDeleteFolderName,SubPath(j)) == 1
+            ToDeleteFileID = [ToDeleteFileID; j];
+        end
+    end
+end
+SubPath(ToDeleteFileID)= []; % Delete found file, thus file in remained folder will be processed furthermore.
+for iPath=1:size(SubPath,1) % Go through each directory % Load firing file
+    Path=SubPath{iPath,1};
+    cd(Path);
+    %% Read data
+    MatlabFile = dir('*.mat');
+    % Load event file
+    Pl2File = dir('*.pl2');
+    Data = [];
+    for i = 1:size(MatlabFile,1)
+        if size(MatlabFile,1) == 1
+            load(MatlabFile.name);
+        else
+            load(MatlabFile(i,1).name);
+        end
+        if exist('adc045') == 1
+            for x=1:4:9
+                if exist(strcat('adc00',num2str(x)))
+                    eval(['Data=[Data;adc00',num2str(x),'];']);
+                end
+            end
+            for x=13:4:97
+                if exist(strcat('adc0',num2str(x)))
+                    eval(['Data=[Data;adc0',num2str(x),'];']);
+                end
+            end
+            for x=101:4:125
+                if exist(strcat('adc',num2str(x)))
+                    eval(['Data=[Data;adc',num2str(x),'];']);
+                end
+            end
+        else
+            for x=65:4:97
+                if exist(strcat('adc0',num2str(x)))
+                    eval(['Data=[Data;adc0',num2str(x),'];']);
+                end
+            end
+            for x=101:4:125
+                if exist(strcat('adc',num2str(x)))
+                    eval(['Data=[Data;adc',num2str(x),'];']);
+                end
+            end
+        end
+    end
+    switch exist('adc045')
+        case 0
+            % Plexon Recording
+            pl2name = Pl2File.name;
+            data = Data;
+            Cue1 = PL2EventTs(pl2name,'EVT02'); % Odor R
+            Cue2 = PL2EventTs(pl2name,'EVT03'); % Odor Q or P
+            Lick = PL2EventTs(pl2name,'EVT01'); % Lick
+            Laser = PL2EventTs(pl2name,'EVT04'); % Laser
+            Laser = Laser.Ts;  AppliedLaser = []; lasertrialnum = 80;
+            if ~isempty(Laser) & length(Laser) > 10 % to exclude special case such as a sudden unknow laser signal
+                for j=1:length(Laser)-1
+                    if isempty(AppliedLaser) == 1
+                        if Laser(j+1)-Laser(j)<14.0423+0.005 & Laser(j+1)-Laser(j)>14.04231-0.005 % resting-state laser
+                            AppliedLaser = [AppliedLaser; Laser(j)];
+                        end
+                    elseif ~isempty(AppliedLaser)
+                        if Laser(j)-AppliedLaser(end)<14.0423+0.005 & Laser(j)-AppliedLaser(end)>14.0423-0.005
+                            AppliedLaser = [AppliedLaser; Laser(j)];
+                        elseif Laser(j+1)-Laser(j)<14.0423+0.005 & Laser(j+1)-Laser(j)>14.0423-0.005
+                            AppliedLaser = [AppliedLaser; Laser(j)];
+                        end
+                    end
+                end
+                if Laser(end)-AppliedLaser(end)<14.0423+0.005 & Laser(end)-AppliedLaser(end)>14.0423-0.005
+                    AppliedLaser = [AppliedLaser; Laser(end)];
+                end
+            end
+            %             if length(CorrectLaser)==80 | isempty(CorrectLaser)
+            Laser = AppliedLaser;
+            if length(Laser) <= lasertrialnum | isempty(Laser)
+                save(['CIO_' pl2name(1:end-4)],'data','Cue1','Cue2','Lick','Laser','-v7.3');
+                YJ_AlignData(strcat('CIO_',pl2name(1:end-4)),lasertrialnum);
+                movefile(['short_' pl2name(1:end-4) '.mat'],[Path(1:end-9)]);
+            end
+            disp(strcat('///Finish organizing data from_',pl2name(1:end-4),'///'));
+            clearvars -except MatlabFile Pl2File iPath SubPath
+        case 1
+            %     Plexon Recording
+            pl2name = Pl2File.name;
+%             pl2 = PL2GetFileIndex(pl2name);
+            Cue1 = PL2EventTs(pl2name,'EVT07'); % Odor 1 or 3 or 5
+            Cue2 = PL2EventTs(pl2name,'EVT08'); % Odor 2 or 4 or 6`
+            Lick = PL2EventTs(pl2name,'EVT06'); % Lick
+            Laser = PL2EventTs(pl2name,'EVT09'); % Laser
+            Laser = Laser.Ts; AppliedLaser = [];
+            for j = 1:length(Laser) - 1
+                if isempty(AppliedLaser)
+                    if (Laser(j+1) - Laser(j) < 0.0701 + 0.005 & Laser(j+1) - Laser(j) > 0.0701-0.005) | (Laser(j+1) - Laser(j) < 10.086 + 0.005 & Laser(j+1) - Laser(j) > 10.086 - 0.005)
+                        AppliedLaser = [AppliedLaser; Laser(j)];
+                    end
+                elseif ~isempty(AppliedLaser)
+                    if (Laser(j) - AppliedLaser(end) < 0.0701+0.005 & Laser(j)-AppliedLaser(end) > 0.0701 - 0.005) | (Laser(j) - AppliedLaser(end) < 10.086 + 0.005 & Laser(j) - AppliedLaser(end) > 10.086 - 0.005)
+                        AppliedLaser = [AppliedLaser; Laser(j)];
+                    elseif Laser(j+1) - Laser(j) < 0.0701 + 0.005 & Laser(j+1) - Laser(j) > 0.0701 - 0.005
+                        AppliedLaser = [AppliedLaser; Laser(j)];
+                    end
+                end
+            end
+            if (Laser(end) - AppliedLaser(end) < 0.0701 + 0.005 & Laser(end) - AppliedLaser(end) > 0.0701 - 0.005) | (Laser(end) - AppliedLaser(end) < 10.086+0.005 & Laser(end) - AppliedLaser(end) > 10.086 - 0.005)
+                AppliedLaser = [AppliedLaser; Laser(end)];
+            end
+            if ~isempty(Data)
+                save(['CIO_' pl2name(1:6) pl2name(end-8:end-4)],'Data','Cue1','Cue2','Lick','AppliedLaser','-v7.3');
+                YJ_AlignData(strcat('CIO_',pl2name(1:6),pl2name(end-8:end-4)),20);
+                movefile(['short_' pl2name(1:6) pl2name(end-8:end-4) '.mat'],[Path(1:end-6)]);
+            end
+            clearvars -except MatlabFile Pl2File iPath SubPath
+    end
+end
+toc
+disp(['Run time: ',num2str(toc)]);
+
