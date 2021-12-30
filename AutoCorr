@@ -1,4 +1,4 @@
-function y = PlotAutoCorr(NewData)
+function y = AutoCorr(NewData)
 
 y = [];
 Units = NewData(:,1:3);
