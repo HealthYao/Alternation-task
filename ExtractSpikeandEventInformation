@@ -2,12 +2,12 @@
 clc; clear; close all;
 tic
 pwd = uigetdir;  % Get target directory
-CurrentPath=pwd;
-AllPath=genpath(CurrentPath);
-SplitPath=strsplit(AllPath,';');
-SubPath=SplitPath';
-SubPath=SubPath(2:end-1);
-FirstGradeFolder=dir(pwd);
+CurrentPath = pwd;
+AllPath = genpath(CurrentPath);
+SplitPath = strsplit(AllPath,';');
+SubPath = SplitPath';
+SubPath = SubPath(2:end-1);
+FirstGradeFolder = dir(pwd);
 ToDeleteFileID = [];
 for i = 3:size(FirstGradeFolder,1)
     ToDeleteFolderName = strcat(pwd,'\',FirstGradeFolder(i).name); % construct file name that will be deleted
@@ -17,9 +17,11 @@ for i = 3:size(FirstGradeFolder,1)
         end
     end
 end
-SubPath(ToDeleteFileID)= []; % Delete found file, thus file in remained folder will be processed furthermore.
-for iPath=1:size(SubPath,1) % Go through each directory % Load firing file
-    Path=SubPath{iPath,1};
+SubPath(ToDeleteFileID) = []; % Delete found file, thus file in remained folder will be processed furthermore.
+TrialsNumInBlock = 24;
+BlockOrder = [1 1 1 2 1 1 1 1 2 2 2 2 1 1 2 1 1 1 2 2 1 2 1 2 1 2 1 1 1 2]; % 1: ODPA block first; 2: ODR block first
+for iPath = 1:size(SubPath,1) % Go through each directory % Load firing file
+    Path = SubPath{iPath,1};
     cd(Path);
     %% Read data
     MatlabFile = dir('*.mat');
@@ -33,28 +35,28 @@ for iPath=1:size(SubPath,1) % Go through each directory % Load firing file
             load(MatlabFile(i,1).name);
         end
         if exist('adc045') == 1
-            for x=1:4:9
+            for x = 1:4:9
                 if exist(strcat('adc00',num2str(x)))
                     eval(['Data=[Data;adc00',num2str(x),'];']);
                 end
             end
-            for x=13:4:97
+            for x = 13:4:97
                 if exist(strcat('adc0',num2str(x)))
                     eval(['Data=[Data;adc0',num2str(x),'];']);
                 end
             end
-            for x=101:4:125
+            for x = 101:4:125
                 if exist(strcat('adc',num2str(x)))
                     eval(['Data=[Data;adc',num2str(x),'];']);
                 end
             end
         else
-            for x=65:4:97
+            for x = 65:4:97
                 if exist(strcat('adc0',num2str(x)))
                     eval(['Data=[Data;adc0',num2str(x),'];']);
                 end
             end
-            for x=101:4:125
+            for x = 101:4:125
                 if exist(strcat('adc',num2str(x)))
                     eval(['Data=[Data;adc',num2str(x),'];']);
                 end
@@ -72,20 +74,20 @@ for iPath=1:size(SubPath,1) % Go through each directory % Load firing file
             Laser = PL2EventTs(pl2name,'EVT04'); % Laser
             Laser = Laser.Ts;  AppliedLaser = []; lasertrialnum = 80;
             if ~isempty(Laser) & length(Laser) > 10 % to exclude special case such as a sudden unknow laser signal
-                for j=1:length(Laser)-1
+                for j = 1:length(Laser) - 1
                     if isempty(AppliedLaser) == 1
-                        if Laser(j+1)-Laser(j)<14.0423+0.005 & Laser(j+1)-Laser(j)>14.04231-0.005 % resting-state laser
+                        if Laser(j+1) - Laser(j) < 14.0423 + 0.005 & Laser(j+1) - Laser(j) > 14.04231-0.005 % resting-state laser
                             AppliedLaser = [AppliedLaser; Laser(j)];
                         end
                     elseif ~isempty(AppliedLaser)
-                        if Laser(j)-AppliedLaser(end)<14.0423+0.005 & Laser(j)-AppliedLaser(end)>14.0423-0.005
+                        if Laser(j) - AppliedLaser(end) < 14.0423 + 0.005 & Laser(j) - AppliedLaser(end) > 14.0423-0.005
                             AppliedLaser = [AppliedLaser; Laser(j)];
-                        elseif Laser(j+1)-Laser(j)<14.0423+0.005 & Laser(j+1)-Laser(j)>14.0423-0.005
+                        elseif Laser(j+1) - Laser(j) < 14.0423+0.005 & Laser(j+1) - Laser(j) > 14.0423 - 0.005
                             AppliedLaser = [AppliedLaser; Laser(j)];
                         end
                     end
                 end
-                if Laser(end)-AppliedLaser(end)<14.0423+0.005 & Laser(end)-AppliedLaser(end)>14.0423-0.005
+                if Laser(end) - AppliedLaser(end) < 14.0423 + 0.005 & Laser(end) - AppliedLaser(end) > 14.0423 - 0.005
                     AppliedLaser = [AppliedLaser; Laser(end)];
                 end
             end
@@ -125,12 +127,11 @@ for iPath=1:size(SubPath,1) % Go through each directory % Load firing file
             end
             if ~isempty(Data)
                 save(['CIO_' pl2name(1:6) pl2name(end-8:end-4)],'Data','Cue1','Cue2','Lick','AppliedLaser','-v7.3');
-                YJ_AlignData(strcat('CIO_',pl2name(1:6),pl2name(end-8:end-4)),20);
+                YJ_AlignData(strcat('CIO_',pl2name(1:6),pl2name(end-8:end-4)),20,BlockOrder(iPath),TrialsNumInBlock);
                 movefile(['short_' pl2name(1:6) pl2name(end-8:end-4) '.mat'],[Path(1:end-6)]);
             end
-            clearvars -except MatlabFile Pl2File iPath SubPath
+            clearvars -except MatlabFile Pl2File iPath SubPath BlockOrder TrialsNumInBlock
     end
 end
 toc
 disp(['Run time: ',num2str(toc)]);
-
