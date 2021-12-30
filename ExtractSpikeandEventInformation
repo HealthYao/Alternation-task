@@ -127,7 +127,7 @@ for iPath = 1:size(SubPath,1) % Go through each directory % Load firing file
             end
             if ~isempty(Data)
                 save(['CIO_' pl2name(1:6) pl2name(end-8:end-4)],'Data','Cue1','Cue2','Lick','AppliedLaser','-v7.3');
-                AlignData(strcat('CIO_',pl2name(1:6),pl2name(end-8:end-4)),20,BlockOrder(iPath),TrialsNumInBlock);
+                AlignData(strcat('CIO_',pl2name(1:6),pl2name(end-8:end-4)),BlockOrder(iPath),TrialsNumInBlock);
                 movefile(['short_' pl2name(1:6) pl2name(end-8:end-4) '.mat'],[Path(1:end-6)]);
             end
             clearvars -except MatlabFile Pl2File iPath SubPath BlockOrder TrialsNumInBlock
