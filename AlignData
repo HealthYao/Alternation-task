@@ -220,7 +220,7 @@ for itr = 1:size(FR,1) % Go through all neurons
                         end
                     end
                 end
-                TrialMark = [TrialMark; [BlockID SampleOdorIden TestOdorIden OdorTS(itr1,:) TrialOutcome]]; 
+                TrialMark = [TrialMark; [BlockID SampOdorIden TestOdorIden OdorTS(itr1,:) TrialOutcome]]; 
             end
         end
         FRResults = CombineCellData(FRResults,SP); % One cell is a trial, comprisng firing of all recorded neurons
