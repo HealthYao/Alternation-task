@@ -1,4 +1,4 @@
-function y = AutoCorr(NewData)
+function y = AutoCorrCalculation(NewData)
 
 y = [];
 Units = NewData(:,1:3);
