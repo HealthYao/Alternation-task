@@ -1,4 +1,4 @@
-function AlignData(FileName, lasertrialnum, BlockOrder, TrialNumInBlock)
+function AlignData(FileName, BlockOrder, TrialNumInBlock)
 
 load(FileName);
 % Parameter definition
@@ -120,7 +120,7 @@ SampleOdorTS = Odor(1,1:2:end);
 OdorTS = horzcat(SampleOdorTS(:),TestOdorTS(:));
 
 %% Laser application timestamp
-if ~isempty(AppliedLaser) & length(AppliedLaser) <= lasertrialnum
+if ~isempty(AppliedLaser)
     LaserStart = AppliedLaser;
 end
 
