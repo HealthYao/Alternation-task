@@ -120,7 +120,7 @@ SampleOdorTS = Odor(1,1:2:end);
 OdorTS = horzcat(SampleOdorTS(:),TestOdorTS(:));
 
 %% Laser application timestamp
-if ~isempty(AppliledLaser) & length(AppliedLaser) <= lasertrialnum
+if ~isempty(AppliedLaser) & length(AppliedLaser) <= lasertrialnum
     LaserStart = AppliedLaser;
 end
 
