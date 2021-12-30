@@ -1,4 +1,4 @@
-function AlignData(FileName, lasertrialnum)
+function AlignData(FileName, lasertrialnum, BlockOrder, TrialNumInBlock)
 
 load(FileName);
 % Parameter definition
@@ -10,7 +10,7 @@ WaveformStartPosition = 4; % Column ID of waveform information start in 'Data'
 TetrodeList = [];
 UnitsList = [];
 Waveform = [];
-for itr = Data(1,1) : Data(end,1) % 128 channels
+for itr = Data(1,1):Data(end,1) % 128 channels
     TetrodeList = [TetrodeList; itr*ones(max(Data(Data(:,1) == itr,2)),1)];
     UnitsList = [UnitsList 1:max(Data(Data(:,1) == itr,2))];
     for itr1 = 1:max(Data(Data(:,1) == itr,2))
@@ -117,7 +117,7 @@ end
 ResponsePeriodStartTS = TestOdorTS + TestOdorLen;
 ResponsePeriodEndTS = ResponsePeriodStartTS + Waterlen;
 SampleOdorTS = Odor(1,1:2:end);
-OdorTs = horzcat(SampleOdorTS(:),TestOdorTS(:));
+OdorTS = horzcat(SampleOdorTS(:),TestOdorTS(:));
 
 %% Laser application timestamp
 if ~isempty(AppliledLaser) & length(AppliedLaser) <= lasertrialnum
@@ -138,7 +138,7 @@ end
 
 %% Spikes in 4 kinds of trials
 TrialMark = []; LickTime = []; LickRate = []; SingleUnitList = []; NewWaveForm = []; FRResults = []; RGResults = [];
-SingleUnitCount = 0; BeforeSampOdorDura = 5; AfterRespPeriodDura = 5;
+SingleUnitCount = 0; BeforeSampOdorDura = 5; AfterRespPeriodDura = 5; BeforeLaserDura = 4; AfterLaserDura = 4; LaserLen = 1;
 MaxTrialNum = find(ResponsePeriodEndTS*TimeGain > size(FR,2)); % Get maximal trial ID within which spikes were recorded
 if ~isempty(MaxTrialNum)
     MaxTrialNum = min(MaxTrialNum) - 1;
@@ -151,7 +151,7 @@ if exist('LaserStart')
     LaserStart = LaserStart(LaserStart < (size(FR,2)/TimeGain - 0.5));
 end
 
-SpikeTime = []; UnitID = 1; DiscaredUnitID = [];
+SpikeTime = []; UnitID = 1; DiscardedUnitID = [];
 for itr = 1:size(FR,1) % Go through all neurons
     if mean(FR(itr,1:TimeGain*ResponsePeriodEndTS(1,MaxTrialNum)),2) * TimeGain >= 2 & sum(AutoCorrValue(itr,21:22))/sum(FR(itr,:)) < 0.0015
         SingleUnitList = [SingleUnitList;UnitsList(itr,:)]; SingleUnitCount = SingleUnitCount + 1;
@@ -174,52 +174,92 @@ for itr = 1:size(FR,1) % Go through all neurons
                     templicknumofbin = length(find((NewLick > t) & (NewLick <= t + 1/TimeGain)));
                     licknuminbin = [licknuminbin templicknumofbin];
                 end
-                LickRate = [LickRate;licknuminbin];
-                LickTime = [LickTime {NewLick(NewLick > ResponsePeriodEndTS(1,itr1) - (BeforeSampOdorDura+ SampleOdorLen + DelayLen + TestOdorLen + Waterlen) & NewLick < ResponsePeriodEndTS(1,itr1),1)-(ResponsePeriodEndTS(1,itr1) - (BeforeSampOdorDura+ SampleOdorLen + DelayLen + TestOdorLen + Waterlen))}];
-                if SampOdorIden == 1
-                    if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
-                        TrialMark = [TrialMark; [OdorTs(itr1,:) 1 TestOdorIden 2]];
+                LickRate = [LickRate; licknuminbin];
+                LickTime = [LickTime {NewLick(NewLick > ResponsePeriodEndTS(1,itr1) - (BeforeSampOdorDura + SampleOdorLen + DelayLen + TestOdorLen + Waterlen) & NewLick < ResponsePeriodEndTS(1,itr1),1) + AfterRespPeriodDura - (ResponsePeriodEndTS(1,itr1) - (BeforeSampOdorDura+ SampleOdorLen + DelayLen + TestOdorLen + Waterlen))}];
+                
+                if rem(itr1,2*TrialNumInBlock) > 0 & rem(itr1,2*TrialNumInBlock) <= TrialNumInBlock
+                    if BlockOrder == 1 % when BlockOrder is 1, the first block is ODPA; when 2, the first block is ODR
+                        BlockID = 1; % 1: ODPA; 2: ODR
                     else
-                        TrialMark = [TrialMark; [OdorTs(itr1,:) 1 TestOdorIden 1]];
+                        BlockID = 2;
                     end
                 else
-                    if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
-                        TrialMark = [TrialMark; [OdorTs(itr1,:) 2 TestOdorIden 4]];
+                    if BlockOrder == 1
+                        BlockID = 2;
                     else
-                        TrialMark = [TrialMark; [OdorTs(itr1,:) 2 TestOdorIden 3]];
+                        BlockID = 1;
                     end
                 end
+                
+                if BlockID == 1 % ODPA
+                    if SampOdorIden ~= TestOdorIden
+                        if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
+                            TrialOutcome = 2; % Miss
+                        else
+                            TrialOutcome = 1; % Hit
+                        end
+                    else
+                        if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
+                            TrialOutcome = 4; % Corr. rej.
+                        else
+                            TrialOutcome = 3; % False alarm
+                        end
+                    end
+                else % ODR
+                    if SampOdorIden == 1
+                        if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
+                            TrialOutcome = 2; % Miss
+                        else
+                            TrialOutcome = 1; % Hit
+                        end
+                    else
+                        if isempty(find(NewLick > ResponsePeriodStartTS(1,itr1) & NewLick < ResponsePeriodEndTS(1,itr1)))
+                            TrialOutcome = 4; % Corr. rej.
+                        else
+                            TrialOutcome = 3; % False alarm
+                        end
+                    end
+                end
+                TrialMark = [TrialMark; [BlockID SampleOdorIden TestOdorIden OdorTS(itr1,:) TrialOutcome]]; 
             end
         end
-        FRResults = CellCombine(FRResults,SP);
+        FRResults = CellCombine(FRResults,SP); % One cell is a trial, comprisng firing of all recorded neurons
         RGResults = [RGResults; RG];
         %%%%%%%%%%%%%%%%%  Laser On-Off  %%%%%%%%%%%%%%%%%%%%
-        if exist('LaserStart') % only in file where there is laser application
-            Laser_SP = []; Laser_RG = [];
-            for itr1=1:size(LaserStart,1) % go through all trials of laser application
-                Laser_SP = [Laser_SP {SpikeTrace(round(LaserStart(itr1,1)*TimeGain-BeforeSampOdorDura*TimeGain):(round(LaserStart(itr1,1)*TimeGain)+(DelayLen+AfterLaser)*TimeGain))}];
-                Laser_RG = [Laser_RG {tempData(tempData(:,3) > LaserStart(itr1,1)-BeforeSampOdorDura & tempData(:,3) < LaserStart(itr1,1)+DelayLen+AfterLaser,3)- (LaserStart(itr1,1)-BeforeSampOdorDura)}];
+        if exist('LaserStart') 
+            SP_laser = []; RG_laser = [];
+            for itr1=1:size(LaserStart,1) % Go through all laser trials
+                if itr1 == 1 | LaserStart(itr1,1) - LaserStart(itr1-1,1) > 5 % Identify laser onset (constant or pulse laser)
+                    SP_laser = [SP_laser {SpikeTrace(round(LaserStart(itr1,1)*TimeGain - BeforeLaserDura*TimeGain):(round(LaserStart(itr1,1)*TimeGain) + (LaserLen + AfterLaserDura)*TimeGain))}];
+                    RG_laser = [RG_laser {tempData(tempData(:,3) > LaserStart(itr1,1) - BeforeLaserDura & tempData(:,3) < LaserStart(itr1,1) + LaserLen + AfterLaserDura,3) - (LaserStart(itr1,1) - BeforeLaserDura)}];
+                end
             end
-            FRResults_laser = CellCombine(FRResults_laser,Laser_SP);
-            RGResults_laser = [RGResults_laser; Laser_RG];
+            FRResults_laser = CellCombine(FRResults_laser,SP_laser);
+            RGResults_laser = [RGResults_laser; RG_laser];
         end
     else
-        DiscaredUnitID = [DiscaredUnitID itr];
+        DiscardedUnitID = [DiscardedUnitID; UnitsList(itr,:)];
     end
 end
-if ~isempty(DiscaredUnitID)
-    for iUnit = 1:length(DiscaredUnitID)
-        NewData(NewData(:,2)==DiscaredUnitID(iUnit),:) = [];
-    end
-    a = unique(NewData(:,2));
-    for i = 1:length(a)
-        tempUnitID = a(i);
-        NewData(NewData(:,2)==tempUnitID,2) = i;
-    end
-end
+
+%% Classify information of trialmark, firing rate, and raster into ODPA and ODR task trials
+TrialMark_ODPA = TrialMark(TrialMark(:,1) == 1,:); TrialMark_ODR = TrialMark(TrialMark(:,1) == 2,:);
+FRResults_ODPA = FRResults(:,TrialMark(:,1) == 1); FRResults_ODR = FRResults(:,TrialMark(:,1) == 2);
+RGResults_ODPA = RGResults(:,TrialMark(:,1) == 1); RGResults_ODR = RGResults(:,TrialMark(:,1) == 2);
+
+% if ~isempty(DiscardedUnitID) % Delete spike data of discarded neurons
+%     for iUnit = 1:length(DiscardedUnitID)
+%         NewData(NewData(:,2) == DiscardedUnitID(iUnit),:) = [];
+%     end
+%     a = unique(NewData(:,2));
+%     for i = 1:length(a)
+%         tempUnitID = a(i);
+%         NewData(NewData(:,2) == tempUnitID,2) = i;
+%     end
+% end
 if exist('LaserStart')
-    save(['short_' FileName(5:end)],'TrialMark','SingleUnitList','NewWaveForm','LaserResults','LaserRGResults','Results','RGResults','LickRate','LickTime','SpikeTime','NewData','-v7.3');
+    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickTime','NewData','SpikeTime','SingleUnitList','DiscardedUnitID','NewWaveForm','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR','FRResults_laser','RGResults_laser','-v7.3');
 else
-    save(['short_' FileName(5:end)],'TrialMark','SingleUnitList','NewWaveForm','Results','RGResults','LickRate','LickTime','SpikeTime','NewData','-v7.3');
+    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickTime','NewData','SpikeTime','SingleUnitList','DiscardedUnitID','NewWaveForm','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR','-v7.3');
 end
 
