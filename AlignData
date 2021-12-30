@@ -223,7 +223,7 @@ for itr = 1:size(FR,1) % Go through all neurons
                 TrialMark = [TrialMark; [BlockID SampleOdorIden TestOdorIden OdorTS(itr1,:) TrialOutcome]]; 
             end
         end
-        FRResults = CellCombine(FRResults,SP); % One cell is a trial, comprisng firing of all recorded neurons
+        FRResults = CombineCellData(FRResults,SP); % One cell is a trial, comprisng firing of all recorded neurons
         RGResults = [RGResults; RG];
         %%%%%%%%%%%%%%%%%  Laser On-Off  %%%%%%%%%%%%%%%%%%%%
         if exist('LaserStart') 
@@ -234,7 +234,7 @@ for itr = 1:size(FR,1) % Go through all neurons
                     RG_laser = [RG_laser {tempData(tempData(:,3) > LaserStart(itr1,1) - BeforeLaserDura & tempData(:,3) < LaserStart(itr1,1) + LaserLen + AfterLaserDura,3) - (LaserStart(itr1,1) - BeforeLaserDura)}];
                 end
             end
-            FRResults_laser = CellCombine(FRResults_laser,SP_laser);
+            FRResults_laser = CombineCellData(FRResults_laser,SP_laser);
             RGResults_laser = [RGResults_laser; RG_laser];
         end
     else
