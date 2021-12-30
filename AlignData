@@ -28,7 +28,7 @@ for i = 1:size(NewData,1) % Each spike
     end
 end
 NewData(NewData(:,2) == 0,:) = [];
-AutoCorrValue = AutoCorr(NewData); % Used as judegment in the next step *****************************
+AutoCorrValue = AutoCorrCalculation(NewData); % Used as judegment in the next step *****************************
 A = Cue1.Ts; B = Cue2.Ts;
 A(:,2) = 1; B(:,2) = 2;
 
@@ -153,7 +153,7 @@ end
 
 SpikeTime = []; UnitID = 1; DiscardedUnitID = [];
 for itr = 1:size(FR,1) % Go through all neurons
-    if mean(FR(itr,1:TimeGain*ResponsePeriodEndTS(1,MaxTrialNum)),2) * TimeGain >= 2 & sum(AutoCorrValue(itr,21:22))/sum(FR(itr,:)) < 0.0015
+    if mean(FR(itr,1:round(TimeGain*ResponsePeriodEndTS(1,MaxTrialNum))),2) * TimeGain >= 2 & sum(AutoCorrValue(itr,21:22))/sum(FR(itr,:)) < 0.0015
         SingleUnitList = [SingleUnitList;UnitsList(itr,:)]; SingleUnitCount = SingleUnitCount + 1;
         NewWaveForm = [NewWaveForm; Waveform(itr,:)]; % Waveform of this neuron
         SpikeTrace = FR(itr,:); % FR of this neuron
@@ -246,6 +246,9 @@ end
 TrialMark_ODPA = TrialMark(TrialMark(:,1) == 1,:); TrialMark_ODR = TrialMark(TrialMark(:,1) == 2,:);
 FRResults_ODPA = FRResults(:,TrialMark(:,1) == 1); FRResults_ODR = FRResults(:,TrialMark(:,1) == 2);
 RGResults_ODPA = RGResults(:,TrialMark(:,1) == 1); RGResults_ODR = RGResults(:,TrialMark(:,1) == 2);
+LickRate_ODPA = LickRate(TrialMark(:,1) == 1,:); LickRate_ODR = LickRate(TrialMark(:,1) == 2,:);
+LickTime_ODPA = LickTime(:,TrialMark(:,1) == 1); LickTime_ODR = LickTime(:,TrialMark(:,1) == 2);
+
 
 % if ~isempty(DiscardedUnitID) % Delete spike data of discarded neurons
 %     for iUnit = 1:length(DiscardedUnitID)
@@ -257,9 +260,12 @@ RGResults_ODPA = RGResults(:,TrialMark(:,1) == 1); RGResults_ODR = RGResults(:,T
 %         NewData(NewData(:,2) == tempUnitID,2) = i;
 %     end
 % end
+BeforeSampOdorDura = 5; AfterRespPeriodDura = 5; BeforeLaserDura = 4; AfterLaserDura = 4;
 if exist('LaserStart')
-    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickTime','NewData','SpikeTime','SingleUnitList','DiscardedUnitID','NewWaveForm','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR','FRResults_laser','RGResults_laser','-v7.3');
+    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickRate_ODPA','LickRate_ODR','LickTime','LickTime_ODPA','LickTime_ODR','NewData','SpikeTime',...
+        'SingleUnitList','DiscardedUnitID','NewWaveForm','BeforeSampOdorDura','AfterRespPeriodDura','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR',...
+        'BeforeLaserDura','AfterLaserDura','FRResults_laser','RGResults_laser','-v7.3');
 else
-    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickTime','NewData','SpikeTime','SingleUnitList','DiscardedUnitID','NewWaveForm','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR','-v7.3');
+    save(['short_' FileName(5:end)],'TrialMark','TrialMark_ODPA','TrialMark_ODR','abort','LickRate','LickRate_ODPA','LickRate_ODR','LickTime','LickTime_ODPA','LickTime_ODR','NewData','SpikeTime',...
+        'SingleUnitList','DiscardedUnitID','NewWaveForm','BeforeSampOdorDura','AfterRespPeriodDura','FRResults','FRResults_ODPA','FRResults_ODR','RGResults','RGResults_ODPA','RGResults_ODR','-v7.3');
 end
-
