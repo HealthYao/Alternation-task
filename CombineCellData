@@ -1,5 +1,5 @@
 % This function is used to combine two cell matrix (just like joint matrix)
-function CellMat=CellCombine(CellA,CellB)
+function CellMat = CombineCellData(CellA,CellB)
 CellMat=[];
 if length(CellA)>length(CellB)
     for itr1=1:length(CellB)
