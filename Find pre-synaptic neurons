@@ -1,1 +1,81 @@
-test
+%% Determine pre-synaptic neurons ID in the upstream region.
+
+clear; clc; close all;
+CurrentPath = uigetdir;
+FirstGradeFolder = dir(CurrentPath);
+FirstGradeFolder(1:2,:) = [];
+
+AllUnitsRG_laser = []; RegionID = [];
+for iPath = 1:size(FirstGradeFolder,1)
+    tempPath = strcat(CurrentPath,'\',FirstGradeFolder(iPath).name);
+    cd(tempPath);
+    DataFiles = dir('*.mat');
+    for iFile = 1:size(DataFiles,1)
+        load(DataFiles(iFile).name);
+        if ~isempty(SingleUnitList)
+            for iUnit = 1:size(SingleUnitList,1)
+                AllUnitsRG_laser = [AllUnitsRG_laser {(RGResults_laser(iUnit,:))'}];
+            end
+            tempRegionID = ones(2,size(SingleUnitList,1));
+            
+            tempRegionID(1,:) = iPath*tempRegionID(2,:);
+            tempRegionID(2,SingleUnitList(:,1) <= 16) = 1; % mPFC
+            tempRegionID(2,SingleUnitList(:,1) > 16) = 2; % aAIC
+            
+            RegionID = [RegionID tempRegionID]; 
+        end
+    end
+end
+
+RespNumCrit = 15; TriNumCrit = 15; RespWindCrit = 0.02; StepWindow = 0.0701; PulseNum = 20; BeforeLaserDura = 4;
+
+cd(CurrentPath);
+PresynapticUnitID = [];
+
+%% To investigate the mice, region, and ID of pre-synaptic neurons.
+for iUnit = 1:length(AllUnitsRG_laser)
+    tempTrialID = [];
+    for iTrial = 1:length(AllUnitsRG_laser{1,iUnit})
+        RespNum = 0;
+        for iPulseID = 1:PulseNum
+            IsRespToPulse = ~isempty(find(AllUnitsRG_laser{1,iUnit}{iTrial,1} <= BeforeLaserDura + StepWindow*(iPulseID - 1) + RespWindCrit & AllUnitsRG_laser{1,iUnit}{iTrial,1} >= BeforeLaserDura + StepWindow*(iPulseID - 1)));
+            if IsRespToPulse == 1
+                RespNum = RespNum + 1;
+            end
+        end
+        if RespNum >= RespNumCrit
+            tempTrialID = [tempTrialID iTrial];
+        end
+    end
+    if length(tempTrialID) >= TriNumCrit
+        PresynapticUnitID = [PresynapticUnitID; (RegionID(:,iUnit))' iUnit];
+        RespTrialID{size(PresynapticUnitID,1)} = tempTrialID;
+    end
+end
+
+%% Plot raster for presynaptic neurons
+for iUnit = 1:size(PresynapticUnitID,1)
+    figure;
+    a = randperm(length(RespTrialID{iUnit}));
+    TargetTrial = RespTrialID{iUnit}(a(1:10));
+    for itr = 0:10 % Trial
+        if itr ~= 0   
+            for itr1 = 1:size(AllUnitsRG_laser{PresynapticUnitID(iUnit,3)}{TargetTrial(itr)},1) 
+                plot([AllUnitsRG_laser{PresynapticUnitID(iUnit,3)}{TargetTrial(itr)}(itr1,1) AllUnitsRG_laser{PresynapticUnitID(iUnit,3)}{TargetTrial(itr)}(itr1,1)], [10 + 1 - itr - 0.25 10 + 1 - itr + 0.25],'k');
+                hold on
+            end
+        else % Blue laser pulse
+            for j=1:PulseNum
+                patch([BeforeLaserDura + (j-1)*StepWindow BeforeLaserDura + (j-1)*StepWindow BeforeLaserDura + (j-1)*StepWindow + 0.005 BeforeLaserDura + (j-1)*StepWindow + 0.005],[10 + 1 - itr - 0.25 10 + 1 - itr + 0.25 10 + 1 - itr + 0.25 10 + 1 - itr - 0.25],[0 0 1],'edgecolor','none');
+                hold on
+            end
+        end
+    end
+    xlim([3.8 5.5]);
+    xlabel('Time (sec)','FontSize',18,'FontName','Arial');
+    ylabel('Trial ID','FontSize',18,'FontName','Arial');
+    box off;
+    set(gcf,'Renderer','Painter');
+    saveas(gcf,['Presynaptic Neuron ID' num2str(PresynapticUnitID(iUnit,3)) ],'fig');
+    close;
+end
